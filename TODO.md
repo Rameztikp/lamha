@@ -1,0 +1,9 @@
+- [x] Add form fields to HotelResource.php for name, location, phone_number, email, rating
+- [x] Add table columns to HotelResource.php for displaying hotels
+- [x] Test creating a hotel to ensure the error is fixed
+- [x] Integrate profile settings form into the home page when ?settings parameter is present
+- [x] Update HomeController to pass showProfileSettings and user variables
+- [x] Update ProfileController to redirect back to home page with settings parameter after update
+- [x] Add hidden field to profile form to indicate submission from home page
+- [x] Implement AJAX booking form submission with handleBookingSubmit function
+- [ ] Test the booking form submission to ensure it works correctly
