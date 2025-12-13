@@ -13,10 +13,10 @@
         .hotel-name { font-weight:700; color:#111827; }
         .field { margin-bottom:.85rem; }
         label { display:block; margin-bottom:.35rem; font-size:.9rem; color:#374151; }
-        input[type=date], input[type=number] {
+        input[type=date], input[type=number], select, textarea {
             width:100%; padding:.6rem .75rem; border-radius:.6rem; border:1px solid #d1d5db; font-size:.9rem; outline:none;
         }
-        input:focus { border-color:#2563eb; box-shadow:0 0 0 1px rgba(37,99,235,.15); }
+        input:focus, select:focus { border-color:#2563eb; box-shadow:0 0 0 1px rgba(37,99,235,.15); }
         .btn-primary { width:100%; border:none; border-radius:.8rem; padding:.7rem 1rem; background:#10b981; color:#fff; font-weight:600; cursor:pointer; margin-top:.5rem; }
         .btn-primary:hover { background:#059669; }
         .back-link { margin-top:1rem; font-size:.85rem; text-align:center; }
@@ -48,26 +48,38 @@
 
         <form method="POST" action="{{ route('booking.store') }}">
             @csrf
-            <input type="hidden" name="hotels_chalets_id" value="{{ $hotel->hotels_chalets_id }}">
+            <input type="hidden" name="hotel_id" id="hotel_id" value="{{ $hotel->id }}">
+
+            <div class="field">
+                <label for="hotel_chalet_id">نوع الغرفة</label>
+                <select id="hotel_chalet_id" name="hotel_chalet_id" required style="width:100%; padding:.6rem .75rem; border-radius:.6rem; border:1px solid #d1d5db; font-size:.9rem; outline:none;">
+                    <option value="">اختر نوع الغرفة</option>
+                    @foreach($chalets as $chalet)
+                        <option value="{{ $chalet->id }}" {{ old('hotel_chalet_id') == $chalet->id ? 'selected' : '' }}>
+                            {{ $chalet->name }} - {{ $chalet->formatted_price }} (سعة {{ $chalet->capacity }} أشخاص)
+                        </option>
+                    @endforeach
+                </select>
+            </div>
 
             <div class="field">
                 <label for="check_in_date">تاريخ الوصول</label>
-                <input id="check_in_date" type="date" name="check_in_date" value="{{ old('check_in_date') }}" required>
+                <input id="check_in_date" type="date" name="check_in_date" value="{{ old('check_in_date') }}" min="{{ $minDate }}" max="{{ $maxDate }}" required>
             </div>
 
             <div class="field">
                 <label for="check_out_date">تاريخ المغادرة</label>
-                <input id="check_out_date" type="date" name="check_out_date" value="{{ old('check_out_date') }}" required>
+                <input id="check_out_date" type="date" name="check_out_date" value="{{ old('check_out_date') }}" min="{{ $minDate }}" max="{{ $maxDate }}" required>
             </div>
 
             <div class="field">
-                <label for="number_of_guests">عدد النزلاء</label>
-                <input id="number_of_guests" type="number" name="number_of_guests" min="1" value="{{ old('number_of_guests', 1) }}" required>
+                <label for="adults">عدد البالغين</label>
+                <input id="adults" type="number" name="adults" min="1" value="{{ old('adults', 1) }}" required>
             </div>
 
             <div class="field">
-                <label for="number_of_rooms">عدد الغرف</label>
-                <input id="number_of_rooms" type="number" name="number_of_rooms" min="1" value="{{ old('number_of_rooms', 1) }}" required>
+                <label for="children">عدد الأطفال</label>
+                <input id="children" type="number" name="children" min="0" value="{{ old('children', 0) }}">
             </div>
 
             <button type="submit" class="btn-primary">تأكيد الحجز</button>

@@ -951,7 +951,7 @@
                                 @endif
                             </div>
                         </div>
-                        <a href="#" onclick="event.preventDefault(); openBookingModal();" class="booking-button" style="display:inline-block;text-align:center;text-decoration:none;cursor:pointer;">
+                        <a href="#" onclick="event.preventDefault(); openBookingModal({{ $hotel->id }});" class="booking-button" style="display:inline-block;text-align:center;text-decoration:none;cursor:pointer;">
                             احجز الآن
                         </a>
                     </div>
@@ -1079,7 +1079,7 @@
 
         <form id="bookingForm" action="{{ route('booking.store') }}" method="POST" class="auth-form" onsubmit="return handleBookingSubmit(event)">
             @csrf
-            <input type="hidden" name="hotel_id" value="1">
+            <input type="hidden" name="hotel_id" id="hotel_id" value="">
 
             <div class="form-group">
                 <label for="hotel_chalet_id">نوع الغرفة</label>
@@ -1156,6 +1156,162 @@
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <script src="https://kit.fontawesome.com/your-code.js" crossorigin="anonymous"></script>
 <script>
+    // Set hotels data for JavaScript
+    window.hotels = @json($hotels);
+</script>
+<script>
+    // Handle booking form submission
+    async function handleBookingSubmit(event) {
+        event.preventDefault();
+        const form = event.target;
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton.innerHTML;
+        
+        try {
+            // تعطيل الزر وإظهار حالة التحميل
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري معالجة الطلب...';
+
+            // إخفاء رسائل الخطأ السابقة
+            const errorMessages = form.querySelectorAll('.error-message');
+            errorMessages.forEach(el => el.remove());
+
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: new FormData(form)
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok) {
+                // معالجة أخطاء التحقق من الصحة
+                if (response.status === 422 && data.errors) {
+                    Object.keys(data.errors).forEach(field => {
+                        const input = form.querySelector(`[name="${field}"]`);
+                        if (input) {
+                            const errorDiv = document.createElement('div');
+                            errorDiv.className = 'error-message';
+                            errorDiv.style.color = 'red';
+                            errorDiv.style.marginTop = '5px';
+                            errorDiv.textContent = data.errors[field][0];
+                            input.parentNode.appendChild(errorDiv);
+                        }
+                    });
+                    throw new Error('الرجاء تصحيح الأخطاء في النموذج');
+                }
+                throw new Error(data.error || 'حدث خطأ أثناء معالجة طلبك');
+            }
+
+            // إظهار رسالة النجاح
+            const successMessage = document.getElementById('bookingSuccess');
+            if (successMessage) {
+                successMessage.style.display = 'block';
+            }
+            
+            // إعادة تعيين النموذج
+            form.reset();
+            
+            // إغلاق النافذة المنبثقة بعد ثانيتين
+            setTimeout(() => {
+                closeModal('bookingModal');
+                
+                // عرض تأكيد الحجز
+                if (data.booking_reference) {
+                    const bookingDetails = document.getElementById('bookingDetails');
+                    if (bookingDetails) {
+                        bookingDetails.innerHTML = `
+                            <p>رقم الحجز: <strong>${data.booking_reference}</strong></p>
+                            <p>شكراً لثقتك بنا. سنقوم بالتواصل معك قريباً لتأكيد التفاصيل النهائية.</p>
+                        `;
+                        openModal('bookingConfirmationModal');
+                    }
+                }
+            }, 2000);
+
+        } catch (error) {
+            console.error('Error:', error);
+            
+            // عرض رسالة الخطأ للمستخدم
+            if (error.message) {
+                alert(error.message);
+            } else {
+                alert('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
+            }
+            
+            // تسجيل الخطأ في الكونسول للتصحيح
+            if (error.response) {
+                console.error('Response error:', await error.response.json());
+            }
+        } finally {
+            // إعادة تفعيل الزر
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
+        }
+    }
+
+    // Update the openBookingModal function to set the hotel_id and load chalets
+    function openBookingModal(hotelId) {
+        console.log('openBookingModal called with hotelId:', hotelId);
+        
+        // تعيين معرف الفندق في الحقل المخفي
+        const hotelIdInput = document.getElementById('hotel_id');
+        if (hotelIdInput) {
+            hotelIdInput.value = hotelId;
+        }
+        
+        // إعادة تعيين رسالة النجاح
+        const successMessage = document.getElementById('bookingSuccess');
+        if (successMessage) {
+            successMessage.style.display = 'none';
+        }
+        
+        // تحميل أنواع الشاليهات المتاحة
+        loadChaletsForHotel(hotelId);
+        
+        // إظهار النافذة المنبثقة
+        const modal = document.getElementById('bookingModal');
+        if (modal) {
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+    }
+    
+    // تحميل أنواع الشاليهات المتاحة للفندق المحدد
+    function loadChaletsForHotel(hotelId) {
+        const chaletSelect = document.getElementById('hotel_chalet_id');
+        if (!chaletSelect) return;
+        
+        // إظهار مؤشر التحميل
+        const originalHtml = chaletSelect.innerHTML;
+        chaletSelect.innerHTML = '<option value="">جاري التحميل...</option>';
+        
+        // جلب بيانات الشاليهات من السيرفر
+        fetch(`/api/hotels/${hotelId}/chalets`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.length > 0) {
+                    let options = '<option value="">اختر نوع الغرفة</option>';
+                    data.forEach(chalet => {
+                        options += `<option value="${chalet.id}">${chalet.name} - ${chalet.price_per_night} ريال/ليلة</option>`;
+                    });
+                    chaletSelect.innerHTML = options;
+                } else {
+                    chaletSelect.innerHTML = '<option value="">لا توجد غرف متاحة</option>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading chalets:', error);
+                chaletSelect.innerHTML = originalHtml;
+                alert('حدث خطأ أثناء تحميل أنواع الغرف. يرجى تحديث الصفحة والمحاولة مرة أخرى.');
+            });
+    }
+    }
+
     // My Bookings Functions
     async function loadUserBookings() {
         const bookingsList = document.getElementById('bookingsList');
@@ -1253,20 +1409,47 @@
         document.body.style.overflow = 'auto';
     }
 
-    function openBookingModal() {
+    function openBookingModal(hotelId) {
+        console.log('openBookingModal called with hotelId:', hotelId);
+        console.log('window.hotels:', window.hotels);
         closeAllModals();
         const modal = document.getElementById('bookingModal');
         modal.style.display = 'block';
         document.body.style.overflow = 'hidden';
 
-        // إذا كان المستخدم مسجل الدخول، قم بملء الحقول تلقائيًا
-        @if(auth()->check())
-            document.getElementById('customer_phone').value = '{{ auth()->user()->phone }}';
-            document.getElementById('customer_phone').readOnly = true;
+        // Set the hotel_id hidden field
+        document.querySelector('input[name="hotel_id"]').value = hotelId;
 
-            // تفعيل حقول التاريخ والضيوف والغرف
-            document.getElementById('check_in_date').focus();
-        @endif
+        // Populate the chalet dropdown based on the selected hotel
+        const chaletSelect = document.getElementById('hotel_chalet_id');
+        console.log('chaletSelect element:', chaletSelect);
+        chaletSelect.innerHTML = '<option value="">اختر نوع الغرفة</option>';
+
+        // Find the hotel and populate chalets
+        const hotel = window.hotels.find(h => parseInt(h.id) === parseInt(hotelId));
+        console.log('hotel found:', hotel);
+        if (hotel && hotel.chalets) {
+            console.log('hotel.chalets:', hotel.chalets);
+            hotel.chalets.forEach(chalet => {
+                console.log('Adding chalet:', chalet);
+                const option = document.createElement('option');
+                option.value = chalet.id;
+                option.textContent = `${chalet.name} - ${chalet.price_per_night} ريال/ليلة`;
+                chaletSelect.appendChild(option);
+                console.log('Option added to DOM:', option);
+            });
+            console.log('Final chaletSelect innerHTML:', chaletSelect.innerHTML);
+            console.log('Final chaletSelect options length:', chaletSelect.options.length);
+            // Force a reflow to ensure options are visible
+            chaletSelect.style.display = 'none';
+            chaletSelect.offsetHeight; // Trigger reflow
+            chaletSelect.style.display = 'block';
+        } else {
+            console.log('No hotel or no chalets found');
+        }
+
+        // Focus on check_in_date
+        document.getElementById('check_in_date').focus();
     }
 
     // Handle booking form submission with AJAX

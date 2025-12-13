@@ -76,7 +76,7 @@ class HotelChalet extends Model
      */
     public function getFormattedPriceAttribute()
     {
-        return number_format($this->price_per_night, 2) . ' ر.س';
+        return number_format($this->price_per_night, 2) . ' ريال/ليلة';
     }
 
     /**

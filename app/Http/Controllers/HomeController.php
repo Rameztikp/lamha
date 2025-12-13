@@ -10,8 +10,8 @@ class HomeController extends Controller
 {
     public function index(Request $request)
     {
-        // جلب الفنادق
-        $hotels = Hotel::all();
+        // جلب الفنادق مع الشاليهات
+        $hotels = Hotel::with('chalets')->get();
 
         // Check if we should show profile settings
         $showProfileSettings = $request->has('settings') && Auth::check();
