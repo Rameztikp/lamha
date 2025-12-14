@@ -11,11 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (! Schema::hasColumn('hotels', 'image')) {
-            Schema::table('hotels', function (Blueprint $table) {
-                $table->string('image')->nullable();
-            });
-        }
+        // No-op: column `image` already exists in production, avoid duplicate column errors.
     }
 
     /**
@@ -23,10 +19,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        if (Schema::hasColumn('hotels', 'image')) {
-            Schema::table('hotels', function (Blueprint $table) {
-                $table->dropColumn('image');
-            });
-        }
+        // No-op: keep existing schema as-is.
     }
 };
